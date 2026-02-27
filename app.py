@@ -55,43 +55,70 @@ if uploaded_file is not None and st.session_state.summary is None:
             try:
                 loader = TextLoader(tmp_path)
                 documents = loader.load()
-                splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=0)
+                splitter = RecursiveCharacterTextSplitter(chunk_size=15100, chunk_overlap=0)
                 split_docs = splitter.split_documents(documents)
                 
                 if not split_docs:
                     st.error("Document is empty or could not be parsed.")
                     st.stop()
                     
-                # The original code only takes the first chunk
-                first_chunk = split_docs[0].page_content
-                
+                # Process all chunks instead of just the first one
                 parser = StrOutputParser()
                 prompt1 = PromptTemplate(
                     template="Summarize the following set of terms and conditions in a clear and consise way: {text}",
                     input_variables=["text"]
                 )
                 prompt2 = PromptTemplate(
-                    template="Based on the following summary of terms and conditions, list out the most offensive ones: {summary} \n ",
-                    input_variables=["summary"]
+                    template="Based on the following set of terms and conditions, list out the most offensive ones: {text} \n ",
+                    input_variables=["text"]
                 )
                 
                 chain1 = prompt1 | model | parser
                 chain2 = prompt2 | model | parser
                 
-                result1 = chain1.invoke({"text": first_chunk})
-                result2 = chain2.invoke({"summary": result1})
+                all_summaries = []
+                all_offensive_terms = []
                 
-                st.session_state.summary = result1
-                st.session_state.offensive_terms = result2
+                # Create a progress bar
+                progress_bar = st.progress(0)
+                status_text = st.empty()
+                
+                total_chunks = len(split_docs)
+                for i, chunk in enumerate(split_docs):
+                    status_text.text(f"Processing chunk {i+1} of {total_chunks}...")
+                    
+                    # 1. Summarize the chunk
+                    chunk_summary = chain1.invoke({"text": chunk.page_content})
+                    all_summaries.append(chunk_summary)
+                    
+                    # 2. Find offensive terms in the chunk (user changed prompt to use {text})
+                    chunk_offensive = chain2.invoke({"text": chunk.page_content})
+                    if chunk_offensive and len(chunk_offensive.strip()) > 5:
+                        all_offensive_terms.append(f"**From Part {i+1}:**\n{chunk_offensive}")
+                        
+                    progress_bar.progress((i + 1) / total_chunks)
+                
+                status_text.text("Finalizing results...")
+                
+                # Combine results
+                final_summary = "\n\n".join(all_summaries)
+                final_offensive = "\n\n".join(all_offensive_terms) if all_offensive_terms else "No highly offensive terms found."
+                
+                st.session_state.summary = final_summary
+                st.session_state.offensive_terms = final_offensive
+                
+                # clear progress UI
+                progress_bar.empty()
+                status_text.empty()
                 
                 # Initialize display messages
                 st.session_state.messages = [
-                    {"role": "assistant", "content": f"**Summary:**\n{result1}"},
-                    {"role": "assistant", "content": f"**Offensive Terms:**\n{result2}"}
+                    {"role": "assistant", "content": f"**Summary of all {total_chunks} sections:**\n\n{final_summary}"},
+                    {"role": "assistant", "content": f"**Offensive Terms across all sections:**\n\n{final_offensive}"}
                 ]
                 
                 # Initialize chat history for the model
-                st.session_state.chat_history = [result1, result2]
+                st.session_state.chat_history = [final_summary, final_offensive]
                 st.rerun()
                 
             finally:
