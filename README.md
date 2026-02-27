@@ -55,12 +55,5 @@ The **Terms & Conditions Analyzer** is an AI-powered application designed to hel
 
 ## Project Structure
 - `app.py`: The main Streamlit application containing the UI and Langchain integration.
-- `main.py`: The original CLI-based script for analyzing T&Cs.
 - `.env`: Environment variables configuration file (store your API keys here).
-
-## Future Scope
-- **Multi-format Support:** Extend document loaders to handle PDF and DOCX files.
-- **Browser Extension:** Enable real-time analysis of T&Cs while browsing signing pages.
-- **Multi-lingual Support:** Automatic translation and analysis for non-English documents.
-- **Personalized Risk Profiles:** Allow users to specify what terms they consider "dealbreakers".
 
