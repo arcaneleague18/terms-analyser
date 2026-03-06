@@ -3,12 +3,16 @@ langchain
 langchain-core
 langchain-community
 
+# OpenAI Integration
+langchain-openai
+openai
 
 # Hugging Face Integration
-langchain-huggingface
+#langchain-huggingface
 transformers
-huggingface-hub
+#huggingface-hub
 
 # Environment Variable Management
 python-dotenv
+
 
